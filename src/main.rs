@@ -161,8 +161,14 @@ impl Roll {
         }
     }
 
-    fn hold(&mut self, num: &DiceNum) {
-        self.holds[*num as usize] = true;
+    fn hold(&mut self, num: &DiceNum) -> bool {
+        if self.holds[*num as usize] {
+            self.holds[*num as usize] = false;
+            false
+        } else {
+            self.holds[*num as usize] = true;
+            true
+        }
     }
 }
 
@@ -241,8 +247,11 @@ impl Game {
                 }
             },
             Command::Hold(hold_num) => {
-                self.current_roll.hold(hold_num);
-                Ok(format!("Held dice number {}", *hold_num as u8 + 1))
+                if self.current_roll.hold(hold_num) {
+                    Ok(format!("Held dice number {}", *hold_num as u8 + 1))
+                } else {
+                    Ok(format!("Unheld dice number {}", *hold_num as u8 + 1))
+                }
             },
             Command::New => {
                 self.score_table.reset_scores();
@@ -371,32 +380,32 @@ fn draw_once(stdout: &mut Stdout, values: &DrawValues) {
     let top_corner = values.score_table_corner;
 
     stdout.queue(cursor::MoveTo(top_corner.0, top_corner.1 - 1)).unwrap();
-    stdout.queue(style::Print("╔═SCORE TABLE══════════╤═══╗")).unwrap();
+    stdout.queue(style::Print("╔═SCORE TABLE══════════╤════╗")).unwrap();
 
     for i in 0..12 {
         stdout.queue(cursor::MoveTo(top_corner.0, top_corner.1 + (i*2))).unwrap();
         print!("║ {}", score_name[i as usize]);
 
         stdout.queue(cursor::MoveTo(top_corner.0 + 24, top_corner.1 + (i*2))).unwrap();
-        stdout.queue(style::Print("   ║")).unwrap();
+        stdout.queue(style::Print("    ║")).unwrap();
 
         stdout.queue(cursor::MoveTo(top_corner.0, top_corner.1 + (i*2) + 1)).unwrap();
 
         if i != 11 {
-            stdout.queue(style::Print("╟━━━━━━━━━━━━━━━━━━━━━━╋━━━╢")).unwrap();
+            stdout.queue(style::Print("╟━━━━━━━━━━━━━━━━━━━━━━╋━━━━╢")).unwrap();
         } else {
-            stdout.queue(style::Print("╟━━━━━━━━━━━━━━━━━━━━┯━┻━━━╢")).unwrap();
+            stdout.queue(style::Print("╟━━━━━━━━━━━━━━━━━━━━┯━┻━━━━╢")).unwrap();
         }
         
     }
 
     stdout.queue(cursor::MoveTo(top_corner.0, top_corner.1 + 24)).unwrap();
 
-    stdout.queue(style::Print("║ TOTAL              │     ║")).unwrap();
+    stdout.queue(style::Print("║ TOTAL              │      ║")).unwrap();
 
     stdout.queue(cursor::MoveTo(top_corner.0, top_corner.1 + 25)).unwrap();
 
-    stdout.queue(style::Print("╚════════════════════╧═════╝")).unwrap();
+    stdout.queue(style::Print("╚════════════════════╧══════╝")).unwrap();
 
     //DRAW DICE
 
@@ -637,12 +646,12 @@ fn parse_command_from_input(input: Vec<&str>) -> Command {
         "help" => {
             if let Some(arg) = input.get(1) {
                 match *arg {
-                    "roll" => Command::Help("roll: rolls the dice that aren't held. Counts as a roll!".to_string()),
-                    "sort" => Command::Help("sort: sorts the dice lowest to highest. Clears held dice".to_string()),
-                    "hold" => Command::Help("hold <dice>: holds dice number <dice> exluding it from next rolls".to_string()),
-                    "score" => Command::Help("score <type>: submits dice to score where <type> is the number of that score type".to_string()),
+                    "roll" | "r" => Command::Help("roll: rolls the dice that aren't held. Counts as a roll!".to_string()),
+                    "sort" | "s" => Command::Help("sort: sorts the dice lowest to highest. Clears held dice".to_string()),
+                    "hold" | "h" => Command::Help("hold <dice>: holds dice number <dice> exluding it from next rolls".to_string()),
+                    "score" | "sc" => Command::Help("score <type>: submits dice to score where <type> is the number of that score type".to_string()),
                     "new" => Command::Help("new: starts a new game, refreshing the scores".to_string()),
-                    "quit" => Command::Help("quit: quits the game".to_string()),
+                    "quit" | "q" | "exit" | "e" => Command::Help("quit: quits the game".to_string()),
                     "help" => Command::Help("help <command>: shows possible commands or help for <command> (but you know that...)".to_string()),
                     _ => Command::NotRecognised("No help found for that".to_string())
                 }
@@ -651,7 +660,7 @@ fn parse_command_from_input(input: Vec<&str>) -> Command {
             }
         }
         "new" => Command::New,
-        "quit" => Command::Quit,
+        "quit" | "q" | "exit" | "e" => Command::Quit,
 
         _ => Command::NotRecognised("Invalid command, try 'help' for list of commands".to_string()),
 
